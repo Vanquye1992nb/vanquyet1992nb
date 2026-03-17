@@ -8,7 +8,7 @@ st.set_page_config(page_title="AI Video Factory - Fixed", layout="wide")
 
 # --- XỬ LÝ API KEY ---
 # Ưu tiên lấy từ Secrets của Streamlit Cloud, nếu không có thì lấy từ Sidebar
-api_key = st.secrets.get("GEMINI_API_KEY") or st.sidebar.text_input("Nhập Gemini API Key:", type="password")
+api_key = st.secrets.get("AIzaSyDTLxNpCLC2ENeW3PjnIVEgKdnyMUYB_f8") or st.sidebar.text_input("Nhập Gemini API Key:", type="password")
 
 if not api_key:
     st.warning("⚠️ Vui lòng cấu hình GEMINI_API_KEY trong phần Secrets hoặc nhập vào thanh bên.")
