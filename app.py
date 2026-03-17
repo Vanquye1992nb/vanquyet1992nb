@@ -20,9 +20,9 @@ st.markdown("""
 def call_gemini_3(api_key, keyword):
     try:
         genai.configure(api_key=api_key)
-        # …p s? d?ng Gemini 3 Flash theo c?p nh?t th·ng 3/2026 c?a b?n
+        # √âp s? d?ng Gemini 3 Flash theo c?p nh?t th√°ng 3/2026 c?a b?n
         model = genai.GenerativeModel('gemini-3-flash')
-        prompt = f"Ph‚n tÌch Youtube '{keyword}'. Tr? v? JSON: 'titles' (10), 'tags' (25)."
+        prompt = f"Ph√¢n t√≠ch Youtube '{keyword}'. Tr? v? JSON: 'titles' (10), 'tags' (25)."
         response = model.generate_content(prompt)
         match = re.search(r'\{.*\}', response.text, re.DOTALL)
         return json.loads(match.group()) if match else None
@@ -32,14 +32,14 @@ def call_gemini_3(api_key, keyword):
 if 'step' not in st.session_state: st.session_state.step = 1
 
 with st.sidebar:
-    st.header("?? C‡i d?t")
+    st.header("?? C√†i d?t")
     api_key = st.text_input("Nh?p API Key:", type="password")
 
 if st.session_state.step == 1:
-    st.markdown('<p class="title-gold">ChuyÍn Gia SEO Video</p>', unsafe_allow_html=True)
+    st.markdown('<p class="title-gold">Chuy√™n Gia SEO Video</p>', unsafe_allow_html=True)
     with st.container():
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        kw = st.text_input("T? khÛa chÌnh", placeholder="VÌ d?: L‡m sao d? gi‡u")
+        kw = st.text_input("T? kh√≥a ch√≠nh", placeholder="V√≠ d?: L√†m sao d? gi√†u")
         if st.button("?? T?O N?I DUNG T?I UU"):
             if kw and api_key:
                 res = call_gemini_3(api_key, kw)
@@ -54,7 +54,7 @@ if st.session_state.step == 1:
 if st.session_state.step >= 2:
     st.markdown(f"### K?T QU?: {st.session_state.current_kw.upper()}")
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.write("?? **10 TI U –? H?P D?N**")
+    st.write("?? **10 TI√äU √ê? H?P D?N**")
     for t in st.session_state.data.get('titles', []): st.write(f"? {t}")
     st.markdown('</div>', unsafe_allow_html=True)
 
