@@ -1,13 +1,35 @@
+from utils.gemini import ask_gemini
+import json
+
 def generate_script(story, duration):
-    scenes = []
-    total_scenes = duration * 2
+    prompt = f"""
+    Tạo kịch bản video từ câu chuyện:
 
-    for i in range(total_scenes):
-        scenes.append({
-            "scene": i + 1,
-            "desc": f"Cảnh {i+1}: {story}",
-            "image_prompt": f"3D animation, cinematic lighting, {story}, scene {i+1}",
-            "video_prompt": f"camera pan, emotional scene {i+1}"
-        })
+    {story}
 
-    return scenes
+    Thời lượng: {duration} phút
+
+    Yêu cầu:
+    - Chia thành các scene
+    - Mỗi scene gồm:
+      + desc
+      + image_prompt (cinematic)
+      + video_prompt (motion)
+
+    Format JSON:
+    [
+      {{
+        "scene": 1,
+        "desc": "",
+        "image_prompt": "",
+        "video_prompt": ""
+      }}
+    ]
+    """
+
+    result = ask_gemini(prompt)
+
+    try:
+        return json.loads(result)
+    except:
+        return []
