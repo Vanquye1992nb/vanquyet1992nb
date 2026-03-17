@@ -3,106 +3,105 @@ import google.generativeai as genai
 import json
 import pandas as pd
 
-# --- CẤU HÌNH GIAO DIỆN DARK MODE ---
-st.set_page_config(page_title="Hệ thống sản xuất Video AI", layout="wide")
+# Cấu hình trang
+st.set_page_config(page_title="AI Video Tool", layout="wide")
 
 # --- QUẢN LÝ API ---
-st.sidebar.title("Cấu hình hệ thống")
 api_key = st.secrets.get("GEMINI_API_KEY") or st.sidebar.text_input("Nhập Gemini API Key:", type="password")
 
 if not api_key:
-    st.warning("⚠️ Vui lòng nhập API Key để bắt đầu.")
+    st.warning("⚠️ Vui lòng cấu hình API Key để bắt đầu.")
     st.stop()
 
-# Khởi tạo AI với cơ chế bắt lỗi chi tiết
 genai.configure(api_key=api_key)
 
 @st.cache_resource
-def init_model():
-    # Thử model 1.5 Flash vì nó nhanh và hỗ trợ tốt nhất hiện nay
-    model_name = 'gemini-1.5-flash'
+def load_gemini():
     try:
-        m = genai.GenerativeModel(model_name)
-        # Thử một lệnh siêu nhỏ để check quyền
-        m.generate_content("Hi") 
-        return m, model_name, None
+        # Sử dụng đúng tên model chuẩn
+        m = genai.GenerativeModel('gemini-1.5-flash')
+        return m
     except Exception as e:
-        return None, None, str(e)
+        st.error(f"Lỗi khởi tạo Model: {e}")
+        return None
 
-model, active_model, error_msg = init_model()
+model = load_gemini()
 
-if not model:
-    st.error(f"❌ Lỗi kết nối API: {error_msg}")
-    st.info("Mẹo: Hãy kiểm tra xem API Key của bạn có bị giới hạn vùng (Region) không, hoặc thử tạo Key mới tại Google AI Studio.")
-    st.stop()
-
-# --- TRẠNG THÁI ỨNG DỤNG ---
+# --- TRẠNG THÁI (SESSION STATE) ---
 if 'step' not in st.session_state: st.session_state.step = 1
 if 'stories' not in st.session_state: st.session_state.stories = []
 if 'selected_story' not in st.session_state: st.session_state.selected_story = None
-if 'char_prompt' not in st.session_state: st.session_state.char_prompt = ""
+if 'final_script' not in st.session_state: st.session_state.final_script = []
 
-# --- BƯỚC 1: TẠO Ý TƯỞNG ---
+# --- HÀM TRỢ GIÚP ---
+def safe_parse_json(text):
+    try:
+        clean = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean)
+    except:
+        return None
+
+# --- GIAO DIỆN CHÍNH ---
+
+# BƯỚC 1: TẠO Ý TƯỞNG
 if st.session_state.step == 1:
     st.header("Bước 1: Tạo ý tưởng câu chuyện")
     with st.container(border=True):
-        topic = st.text_area("Nhập thể loại hoặc ý tưởng câu chuyện", 
-                             placeholder="Ví dụ: phim hoạt hình phiêu lưu về GaiO và Bibi...")
+        topic = st.text_area("Nhập thể loại hoặc ý tưởng câu chuyện", placeholder="Ví dụ: Phim hoạt hình về GaiO và Bibi...")
         c1, c2 = st.columns(2)
         style = c1.selectbox("Phong cách", ["Hoạt hình 3D", "Anime", "Cyberpunk"])
-        qty = c2.number_input("Số lượng câu chuyện", 1, 10, 3)
-        
-        st.write("--- HOẶC ---")
-        st.file_uploader("Tải file lên (.csv)", type="csv")
+        qty = c2.number_input("Số lượng", 1, 5, 3)
         
         if st.button("Tạo câu chuyện", type="primary"):
-            with st.spinner("Đang lên ý tưởng..."):
-                prompt = f"Tạo {qty} ý tưởng phim {style} về {topic}. Trả về JSON list: [{{'title': '...', 'summary': '...'}}]"
-                res = model.generate_content(prompt)
-                try:
-                    # Làm sạch text để lấy JSON
-                    clean_res = res.text.replace("```json", "").replace("```", "").strip()
-                    st.session_state.stories = json.loads(clean_res)
-                    st.session_state.step = 2
-                    st.rerun()
-                except:
-                    st.error("AI trả về định dạng không đúng. Hãy thử nhấn nút lại.")
+            if not topic:
+                st.error("Vui lòng nhập nội dung!")
+            else:
+                with st.spinner("Đang xử lý..."):
+                    prompt = f"Tạo {qty} ý tưởng phim {style} về {topic}. Trả về JSON list: [{{'title': '...', 'summary': '...'}}]"
+                    res = model.generate_content(prompt)
+                    data = safe_parse_json(res.text)
+                    if data:
+                        st.session_state.stories = data
+                        st.session_state.step = 2
+                        st.rerun()
 
-# --- BƯỚC 2: CHỌN CÂU CHUYỆN ---
+# BƯỚC 2: CHỌN CÂU CHUYỆN
 elif st.session_state.step == 2:
-    st.header("Bước 2: Chọn câu chuyện & Tạo nhân vật")
-    if st.button("← Quay lại"): st.session_state.step = 1; st.rerun()
-    
-    # Hiển thị bảng danh sách như trong ảnh của Minh
+    st.header("Bước 2: Chọn câu chuyện")
+    if st.button("← Quay lại Bước 1"):
+        st.session_state.step = 1
+        st.rerun()
+        
     for idx, s in enumerate(st.session_state.stories):
         with st.container(border=True):
-            col_idx, col_content = st.columns([0.5, 4.5])
-            col_idx.write(f"**STT: {idx+1}**")
-            col_content.write(f"**Tên câu chuyện:** {s['title']}")
-            col_content.write(f"**Tóm tắt:** {s['summary']}")
-            if st.button(f"Chọn câu chuyện {idx+1}", key=f"sel_{idx}"):
+            st.subheader(f"{idx+1}. {s['title']}")
+            st.write(s['summary'])
+            if st.button(f"Chọn câu chuyện {idx+1}", key=f"btn_{idx}"):
                 st.session_state.selected_story = s
                 st.session_state.step = 3
                 st.rerun()
 
-# --- BƯỚC 3: CHỈNH SỬA NHÂN VẬT & TẠO KỊCH BẢN ---
+# BƯỚC 3: NHÂN VẬT & KỊCH BẢN
 elif st.session_state.step == 3:
     st.header("Bước 3: Chỉnh sửa nhân vật & Tạo kịch bản")
-    if st.button("← Quay lại"): st.session_state.step = 2; st.rerun()
-    
-    col_char, col_config = st.columns([1, 1])
-    
-    with col_char:
-        st.subheader("Chỉnh sửa & Xác nhận nhân vật")
-        st.image("https://via.placeholder.com/400x400.png?text=AI+Character+Preview", use_container_width=True)
-        char_name = st.text_input("Tên nhân vật", value="Mamala")
-        st.session_state.char_prompt = st.text_area("Prompt nhân vật", 
-                                                   value="A single full-body portrait of Mamala, a sleek domestic cat in a 3D cartoon style...")
-        st.button("Tạo lại ảnh (Leonardo)")
-
-    with col_config:
-        st.subheader("Cài đặt kịch bản")
-        duration = st.number_input("Thời lượng video (phút)", value=3)
-        env = st.text_area("Mô tả môi trường & bối cảnh", "Rừng rậm rực rỡ dưới ánh hoàng hôn...")
+    if st.button("← Quay lại Bước 2"):
+        st.session_state.step = 2
+        st.rerun()
         
-        if st
+    col_l, col_r = st.columns([1, 1])
+    with col_l:
+        st.subheader("Nhân vật")
+        name = st.text_input("Tên nhân vật", "Mamala")
+        desc = st.text_area("Mô tả ngoại hình", "Mèo xám phong cách hoạt hình 3D...")
+        st.image("https://via.placeholder.com/300?text=Preview", use_container_width=True)
+        
+    with col_r:
+        st.subheader("Cài đặt")
+        time_vid = st.number_input("Thời lượng (phút)", 1, 12, 3)
+        context = st.text_area("Bối cảnh", "Trong một khu rừng kỳ ảo...")
+        
+        if st.button("Tạo kịch bản chi tiết", type="primary"):
+            with st.spinner("Đang tạo kịch bản..."):
+                prompt = f"Viết kịch bản {time_vid} phút cho: {st.session_state.selected_story['title']}. Nhân vật {name} ({desc}). Bối cảnh {context}. Trả về JSON list các cảnh: [{{'STT': 1, 'MÔ TẢ': '...', 'VEO_PROMPT': '...', 'KIỂM TRA': 'Có'}}]"
+                res = model.generate_content(prompt)
+                data = safe_parse_json(res.text)
