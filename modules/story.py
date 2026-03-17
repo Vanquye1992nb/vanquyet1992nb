@@ -1,11 +1,23 @@
-import random
+from utils.gemini import ask_gemini
 
 def generate_stories(topic, n):
-    base = [
-        f"Một hành trình kỳ lạ về {topic}",
-        f"Bí ẩn đáng sợ về {topic}",
-        f"Câu chuyện cảm động về {topic}",
-        f"Cuộc phiêu lưu sinh tồn trong {topic}",
-        f"Một sự thật chưa ai biết về {topic}"
-    ]
-    return random.sample(base, n)
+    prompt = f"""
+    Tạo {n} ý tưởng video viral về chủ đề: {topic}
+
+    Yêu cầu:
+    - Ngắn gọn
+    - Gây tò mò
+    - Có cảm xúc
+    - Dạng list
+
+    Trả về mỗi dòng 1 ý tưởng
+    """
+
+    result = ask_gemini(prompt)
+
+    if result:
+        stories = result.split("\n")
+        return [s.strip("- ") for s in stories if s.strip() != ""]
+    
+    # fallback
+    return [f"Câu chuyện về {topic}"]
